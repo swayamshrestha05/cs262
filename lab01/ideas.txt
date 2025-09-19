@@ -1,0 +1,14 @@
+Exercise 1.1
+
+i. Interesting and tractable
+- An app where Calvin students can post, browse, and join projects across all departments; Computer Science, Engineering, Art, Biology, etc.
+- Some of the features would include posting the project with a title, description, skills required, department
+- Projects can be sorted by department, skill level, class level (freshman, sophomore)
+- Messaging with the post author
+- Favorites where you can save projects you are interested in
+
+ii. Wacky app
+- An app that converts your ordinary Toyota into a Transformer (like Optimus Prime)
+- You can upload a picture of your favorite Transformer into the app and the app will directly connect to the car's operating system
+- Your car then gains the abilities and personality of the Transformer
+- The command "Autobots, roll out" will make your car transform
