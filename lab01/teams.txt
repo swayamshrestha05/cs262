@@ -1,0 +1,43 @@
+Exercise 1.2
+
+a. Demographics
+i. Class level - Junior
+ii. Major - BCS
+iii. CS112 - A, CS212 - A
+iv. 262 section A - I can only attend the first half of the lab session. 
+
+b. Technical
+i. 
+- I have worked with JavaScript for web development projects for the Hekman Library website. It included updating code mostly related to front-end components.
+- I have also worked with Typescript for CS336 projects
+- SQL Database systems - I do not have much experience working with SQL database systems except for learning some SQL queries.
+
+ii.
+- I have used Trello for tracking tasks and dividing them into buckets mostly when working at Hekman Library. I have also used it personally to keep track of my tasks for my internship.
+- GitHub - very little for CS112, CS336, Hekman Library
+
+iii.
+- Projects that I am interested in working on are my proposed tractable app.
+- From the moodle forum posts:
+	- TradeHands app
+	- IngredientMatch app
+
+
+
+c. Personality
+i. Openness - 69, Conscientiousness - 77, Extraversion - 27, Agreeableness - 73, Neuroticism - 48
+
+ii.
+Would like to work with:
+- Samuel Ntadom
+- Jacob Foote
+- Isaac Hur
+- Joshua Eilu
+- Eun Hyuk Doo
+
+Would not like to work with:
+- Guli Costa
+- Aisha Abdullahi
+- Genevieve Osei-Owusu
+- Max Wu
+
