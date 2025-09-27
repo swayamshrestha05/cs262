@@ -202,10 +202,15 @@ const styles = StyleSheet.create({
   itemTextWrap: { flex: 1 },
   itemText: { fontSize: 16 },
   itemTextCompleted: { textDecorationLine: "line-through", color: "#888" },
-  itemActions: { flexDirection: "row", marginLeft: 8 },
+  itemActions: { flexDirection: "row", marginLeft: "auto" },
   actionButton: { paddingHorizontal: 8, paddingVertical: 4 },
   actionText: { color: "#2f95dc" },
   emptyRow: { padding: 24, alignItems: "center" },
   emptyText: { color: "#666" },
-  editInput: { padding: 0, borderBottomWidth: 1, borderBottomColor: "#ddd" },
+  editInput: {
+    flex: 1,
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
 });
