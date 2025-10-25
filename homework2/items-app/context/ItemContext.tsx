@@ -23,7 +23,6 @@ import React, {
   ReactNode,
   useContext,
   useEffect,
-  use,
 } from "react";
 import { Item } from "../types/Item";
 
