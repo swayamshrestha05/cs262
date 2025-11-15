@@ -1,19 +1,18 @@
 /**
- * ItemContext - React Context for managing application items
+ * GameContext - React Context for managing games and players
  *
- * This context provides centralized state management for the item list,
- * including the ability to delete items. Items are loaded from a JSON file
- * and managed in component state.
+ * This context provides centralized state management for the game list,
+ * including the ability to delete games and fetch players for a specific game.
  *
  * @example
  * ```tsx
  * // Wrap your app with the provider
- * <ItemProvider>
+ * <GameProvider>
  *   ... app components ...
- * </ItemProvider>
+ * </GameProvider>
  *
  * // Use in components
- * const { items, deleteItem } = useItemContext();
+ * const { games, deleteGame, fetchPlayers } = useGameContext();
  * ```
  */
 
@@ -23,25 +22,31 @@ import React, {
   ReactNode,
   useContext,
   useEffect,
+  useCallback,
 } from "react";
-import { Game } from "../types/Item";
+import { Game, PlayerGameWithDetails } from "../types/Item";
 
 /**
  * This context type defines the shape of the context value that includes
- * the items array and a function to delete items by their unique identifier.
+ * the games array, a function to delete games, and a function to fetch players.
  *
- * @interface ItemContextType
- * @property items - Array of all available items
- * @property deleteItem - Function to remove an item by its ID
+ * @interface GameContextType
+ * @property games - Array of all available games
+ * @property deleteGame - Function to remove a game by its ID
+ * @property fetchPlayers - Function to fetch players for a specific game
  */
 interface GameContextType {
   games: Game[];
   deleteGame: (id: number) => void;
+  fetchPlayers: (gameId: number) => Promise<PlayerGameWithDetails[]>; // Changed return type
 }
 
+const API_BASE_URL =
+  "https://monopoly-service-fwb0djd9etgre8cr.canadacentral-01.azurewebsites.net";
+
 /**
- * This creates and exports the context for item state management.
- * It returns undefined if used outside of ItemProvider, which allows
+ * This creates and exports the context for game state management.
+ * It returns undefined if used outside of GameProvider, which allows
  * components to detect if they're properly wrapped.
  */
 export const GameContext = createContext<GameContextType | undefined>(
@@ -51,28 +56,26 @@ export const GameContext = createContext<GameContextType | undefined>(
 /**
  * This creates and exports the provider component.
  *
- * It initializes items from JSON data and provides methods to manipulate them,
+ * It initializes games from the API and provides methods to manipulate them,
  * using React state to manage them.
  *
- * @param children - React components that need access to item context
+ * @param children - React components that need access to game context
  */
 export const GameProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  // Initialize items from imported JSON data
+  // Initialize games from API
   const [games, setGames] = useState<Game[]>([]);
 
-  //   Fetching items from the URL
+  // Fetch games from the API on mount
   useEffect(() => {
     async function fetchGames() {
       try {
-        const response = await fetch(
-          "https://monopoly-service-fwb0djd9etgre8cr.canadacentral-01.azurewebsites.net/games"
-        );
+        const response = await fetch(`${API_BASE_URL}/games`);
         const json = await response.json();
         setGames(json);
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching games:", error);
       }
     }
 
@@ -80,40 +83,68 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   /**
-   * Removes an item from the list by filtering out the matching ID
+   * Removes a game from the list by filtering out the matching ID
    *
    * Uses React.useCallback to memoize the function, which prevents
    * unnecessary re-renders of child components that receive this
    * function as a prop.
    *
-   * @param id - The unique identifier of the item to delete
+   * @param id - The unique identifier of the game to delete
    */
-  const deleteGame = React.useCallback((id: number) => {
+  const deleteGame = useCallback((id: number) => {
     setGames((prevGames) => prevGames.filter((game) => game.id !== id));
-  }, []); // Empty dependency array - function doesn't depend on any props or state
+  }, []);
 
+  /**
+   * Fetches players for a specific game from the API
+   *
+   * This function calls the /games/:id/players endpoint to retrieve
+   * all players associated with a particular game, including their
+   * scores, names, and email addresses.
+   *
+   * @param gameId - The unique identifier of the game
+   * @returns Promise resolving to an array of PlayerGame objects
+   */
+  const fetchPlayers = useCallback(
+    async (gameId: number): Promise<PlayerGameWithDetails[]> => {
+      // Changed return type
+      try {
+        const response = await fetch(`${API_BASE_URL}/games/${gameId}/players`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch players: ${response.statusText}`);
+        }
+        const json = await response.json();
+        return json;
+      } catch (error) {
+        console.error(`Error fetching players for game ${gameId}:`, error);
+        return [];
+      }
+    },
+    []
+  );
   // Context value object containing all state and actions
   const value: GameContextType = {
     games,
     deleteGame,
+    fetchPlayers,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 };
 
 /**
- * Custom hook to safely access ItemContext
+ * Custom hook to safely access GameContext
  *
  * It handles the null check and provides a helpful error message if used
- * outside of ItemProvider. This eliminates boilerplate in components.
+ * outside of GameProvider. This eliminates boilerplate in components.
  *
- * @returns The context value containing items and deleteItem function
- * @throws Error if used outside of ItemProvider
+ * @returns The context value containing games, deleteGame, and fetchPlayers
+ * @throws Error if used outside of GameProvider
  */
 export const useGameContext = () => {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error("useGameContext must be used within an ItemProvider");
+    throw new Error("useGameContext must be used within a GameProvider");
   }
   return context;
 };
