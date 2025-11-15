@@ -1,10 +1,10 @@
 import { Stack } from "expo-router";
-import { GameProvider } from "@/context/GameContext";
+import { GamesProvider } from "@/context/GameContext";
 import { commonStyles, headerConfig } from "../styles/common";
 
 export default function RootLayout() {
   return (
-    <GameProvider>
+    <GamesProvider>
       <Stack>
         <Stack.Screen
           name="tabs"
@@ -16,12 +16,12 @@ export default function RootLayout() {
         <Stack.Screen
           name="details"
           options={{
-            title: "Item Details",
+            title: "Game Details",
             headerStyle: commonStyles.headerStyle,
             headerTintColor: headerConfig.tintColor,
           }}
         />
       </Stack>
-    </GameProvider>
+    </GamesProvider>
   );
 }

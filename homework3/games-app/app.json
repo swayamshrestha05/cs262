@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "homework2",
-    "slug": "homework2",
+    "name": "homework3",
+    "slug": "homework3",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "homework2",
+    "scheme": "homework3",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

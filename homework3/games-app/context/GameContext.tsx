@@ -1,18 +1,17 @@
 /**
- * GameContext - React Context for managing games and players
+ * GameContext - React Context for managing the list of games
  *
  * This context provides centralized state management for the game list,
- * including the ability to delete games and fetch players for a specific game.
+ * including loading game data from the REST service.
  *
  * @example
  * ```tsx
- * // Wrap your app with the provider
- * <GameProvider>
+ * <GamesProvider>
  *   ... app components ...
- * </GameProvider>
+ * </GamesProvider>
  *
- * // Use in components
- * const { games, deleteGame, fetchPlayers } = useGameContext();
+ * // Usage:
+ * const { games, refreshGames } = useGamesContext();
  * ```
  */
 
@@ -24,127 +23,133 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { Game, PlayerGameWithDetails } from "../types/Item";
+import { Game, GamePlayer } from "../types/Monopoly";
 
 /**
  * This context type defines the shape of the context value that includes
- * the games array, a function to delete games, and a function to fetch players.
+ * the games array and a function to refresh (reload) them from the server.
  *
- * @interface GameContextType
- * @property games - Array of all available games
- * @property deleteGame - Function to remove a game by its ID
- * @property fetchPlayers - Function to fetch players for a specific game
+ * @interface GamesContextType
+ * @property games - Array of all games retrieved from the API
+ * @property refreshGames - Function to reload the game list from the API
  */
-interface GameContextType {
+interface GamesContextType {
   games: Game[];
-  deleteGame: (id: number) => void;
-  fetchPlayers: (gameId: number) => Promise<PlayerGameWithDetails[]>; // Changed return type
+  refreshGames: () => Promise<void>;
+  deleteGame: (id: number) => Promise<void>;
+  fetchPlayers: (gameID: number) => Promise<GamePlayer[]>;
+  setGames: React.Dispatch<React.SetStateAction<Game[]>>;
 }
-
-const API_BASE_URL =
-  "https://monopoly-service-fwb0djd9etgre8cr.canadacentral-01.azurewebsites.net";
 
 /**
  * This creates and exports the context for game state management.
  * It returns undefined if used outside of GameProvider, which allows
  * components to detect if they're properly wrapped.
  */
-export const GameContext = createContext<GameContextType | undefined>(
+export const GamesContext = createContext<GamesContextType | undefined>(
   undefined
 );
 
 /**
- * This creates and exports the provider component.
+ * Provides the context to the entire app.
  *
- * It initializes games from the API and provides methods to manipulate them,
- * using React state to manage them.
+ * It fetches game data from the REST API on mount and makes it available
+ * to all children components via React Context.
  *
  * @param children - React components that need access to game context
  */
-export const GameProvider: React.FC<{ children: ReactNode }> = ({
+export const GamesProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  // Initialize games from API
   const [games, setGames] = useState<Game[]>([]);
 
-  // Fetch games from the API on mount
-  useEffect(() => {
-    async function fetchGames() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/games`);
-        const json = await response.json();
-        setGames(json);
-      } catch (error) {
-        console.error("Error fetching games:", error);
+  const BASE_URL = "http://153.106.223.189:3000";
+
+  const refreshGames = useCallback(async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/games`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const json: Game[] = await response.json();
+      setGames(json);
+    } catch (error) {
+      console.error("Failed to load games:", error);
     }
-
-    fetchGames();
   }, []);
 
   /**
-   * Removes a game from the list by filtering out the matching ID
-   *
-   * Uses React.useCallback to memoize the function, which prevents
-   * unnecessary re-renders of child components that receive this
-   * function as a prop.
-   *
-   * @param id - The unique identifier of the game to delete
+   * Deletes a game by ID from the REST API and updates local state.
    */
-  const deleteGame = useCallback((id: number) => {
-    setGames((prevGames) => prevGames.filter((game) => game.id !== id));
+  const deleteGame = useCallback(async (id: number) => {
+    try {
+      const response = await fetch(`${BASE_URL}/games/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+
+      // Update local state to remove the deleted game
+      setGames((prev) => prev.filter((game) => game.id !== id));
+      console.log(`Game ${id} deleted successfully.`);
+    } catch (error) {
+      console.error("Error deleting game:", error);
+    }
   }, []);
 
-  /**
-   * Fetches players for a specific game from the API
-   *
-   * This function calls the /games/:id/players endpoint to retrieve
-   * all players associated with a particular game, including their
-   * scores, names, and email addresses.
-   *
-   * @param gameId - The unique identifier of the game
-   * @returns Promise resolving to an array of PlayerGame objects
-   */
   const fetchPlayers = useCallback(
-    async (gameId: number): Promise<PlayerGameWithDetails[]> => {
-      // Changed return type
+    async (gameID: number): Promise<GamePlayer[]> => {
       try {
-        const response = await fetch(`${API_BASE_URL}/games/${gameId}/players`);
+        const response = await fetch(`${BASE_URL}/games/${gameID}`);
         if (!response.ok) {
-          throw new Error(`Failed to fetch players: ${response.statusText}`);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const json = await response.json();
-        return json;
+        const raw = await response.json();
+        // Backend returns {name, score} - map to GamePlayer
+        const players: GamePlayer[] = Array.isArray(raw)
+          ? raw.map((row: any, idx: number) => ({
+              id: row.id ?? idx,
+              name: row.name ?? "unknown",
+              score: typeof row.score === "number" ? row.score : 0,
+            }))
+          : [];
+        return players;
       } catch (error) {
-        console.error(`Error fetching players for game ${gameId}:`, error);
+        console.error("Failed to load players for game:", error);
         return [];
       }
     },
     []
   );
-  // Context value object containing all state and actions
-  const value: GameContextType = {
-    games,
-    deleteGame,
-    fetchPlayers,
-  };
 
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  useEffect(() => {
+    refreshGames();
+  }, [refreshGames]);
+
+  return (
+    <GamesContext.Provider
+      value={{ games, refreshGames, deleteGame, fetchPlayers, setGames }}
+    >
+      {children}
+    </GamesContext.Provider>
+  );
 };
 
 /**
- * Custom hook to safely access GameContext
+ * Custom hook for safely accessing the GamesContext.
  *
  * It handles the null check and provides a helpful error message if used
  * outside of GameProvider. This eliminates boilerplate in components.
  *
- * @returns The context value containing games, deleteGame, and fetchPlayers
+ * @returns The context value containing game and deleteGame function
  * @throws Error if used outside of GameProvider
  */
-export const useGameContext = () => {
-  const context = useContext(GameContext);
+export const useGamesContext = () => {
+  const context = useContext(GamesContext);
   if (!context) {
-    throw new Error("useGameContext must be used within a GameProvider");
+    throw new Error("useGamesContext must be used within a GamesProvider");
   }
   return context;
 };

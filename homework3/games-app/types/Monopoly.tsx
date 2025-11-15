@@ -15,12 +15,14 @@ export interface Game {
 }
 
 export interface PlayerGame {
-  gameId: number;
+  gameID: number;
   playerID: number;
   score: number;
 }
 
-export const defaultGame: Game = {
-  id: 0,
-  time: "game not found",
-};
+export interface GamePlayer {
+  id?: number;
+  name: string;
+  score: number;
+  email?: string;
+}

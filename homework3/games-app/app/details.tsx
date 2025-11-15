@@ -1,186 +1,184 @@
-import { useGameContext } from "@/context/GameContext";
+/**
+ * Details - Individual game details view
+ *
+ * This screen displays the players and their scores for the selected game.
+ * It fetches data from the backend using GET /games/:id through GamesContext.
+ */
+
 import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Alert,
   Platform,
-  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Game, PlayerGameWithDetails } from "../types/Item"; // Changed import
+import { useGamesContext } from "@/context/GameContext";
+import { GamePlayer, Game } from "../types/Monopoly";
 import { commonStyles } from "../styles/common";
 
+// Determine base URL based on environment
+const BASE_URL = "http://153.106.223.189:3000"; // Temporary public IP for testing
+// "http://localhost:3000"     // Web local testing
+
 export default function Details() {
-  const { gameId } = useLocalSearchParams();
+  // Extract the game ID from navigation parameters
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const id = Number(gameId);
+  const { fetchPlayers, setGames, games } = useGamesContext();
 
-  const { deleteGame, fetchPlayers } = useGameContext();
-
-  // Local state for selected game and players
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
-  const [players, setPlayers] = useState<PlayerGameWithDetails[]>([]); // Changed type
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch game details and players on component mount
-  useEffect(() => {
-    if (!id || isNaN(id)) {
-      setError("Invalid game ID");
-      setLoading(false);
-      return;
-    }
-
-    const loadGameData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch game details
-        const gameResponse = await fetch(
-          `https://monopoly-service-fwb0djd9etgre8cr.canadacentral-01.azurewebsites.net/games/${id}`
-        );
-
-        if (!gameResponse.ok) {
-          if (gameResponse.status === 404) {
-            setError("Game not found");
-          } else {
-            setError("Failed to load game");
-          }
-          setLoading(false);
-          return;
-        }
-
-        const gameData = await gameResponse.json();
-        setSelectedGame(gameData);
-
-        // Fetch players for the game
-        const playerData = await fetchPlayers(id);
-        setPlayers(playerData);
-      } catch (error) {
-        console.error("Error loading game data:", error);
-        setError("Failed to load game data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadGameData();
-  }, [id, fetchPlayers]);
-
-  // Delete the game via Web Service first
-  const handleDelete = async () => {
-    if (!selectedGame?.id) return;
-
-    const deleteConfirmed =
-      Platform.OS === "web"
-        ? typeof window !== "undefined" &&
-          window.confirm(`Delete Game #${selectedGame.id}?`)
-        : await new Promise<boolean>((resolve) => {
-            Alert.alert(
-              "Delete Game",
-              `Are you sure you want to delete Game #${selectedGame.id}?`,
-              [
-                {
-                  text: "Cancel",
-                  style: "cancel",
-                  onPress: () => resolve(false),
-                },
-                {
-                  text: "Delete",
-                  style: "destructive",
-                  onPress: () => resolve(true),
-                },
-              ]
-            );
-          });
-
-    if (!deleteConfirmed) return;
-
-    try {
-      // Delete from Web Service
-      const response = await fetch(
-        `https://monopoly-service-fwb0djd9etgre8cr.canadacentral-01.azurewebsites.net/games/${selectedGame.id}`,
-        { method: "DELETE" }
-      );
-      if (!response.ok) throw new Error("Failed to delete game from server");
-
-      // Delete from local state
-      deleteGame(selectedGame.id);
-      router.back();
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Failed to delete game. Try again later.");
-    }
+  const selectedGame: Game = games.find((game) => game.id === Number(id)) || {
+    id: 0,
+    time: "",
   };
 
-  // Show loading state
-  if (loading) {
-    return (
-      <View style={[commonStyles.container, styles.centerContainer]}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading game details...</Text>
-      </View>
-    );
-  }
+  const [players, setPlayers] = useState<GamePlayer[]>([]);
 
-  // Show error state
-  if (error || !selectedGame) {
-    return (
-      <View style={[commonStyles.container, styles.centerContainer]}>
-        <Text style={styles.errorText}>{error || "Game not found"}</Text>
-        <TouchableOpacity
-          style={[commonStyles.button, { marginTop: 20 }]}
-          onPress={() => router.back()}
-        >
-          <Text style={commonStyles.buttonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  // fetchPlayers & find game info
+  useEffect(() => {
+    if (id) {
+      (async () => {
+        try {
+          const data = await fetchPlayers(Number(id));
+          setPlayers(data);
+        } catch (error) {
+          console.error("Error loading players:", error);
+        }
+      })();
+    }
+  }, [id, fetchPlayers]);
 
-  // Show game details
+  // Handles item deletion with user confirmation
+  const handleDelete = () => {
+    if (!selectedGame.id) return;
+
+    if (Platform.OS === "web") {
+      const confirmed =
+        typeof window !== "undefined" &&
+        window.confirm(`Are you sure you want to delete "${selectedGame.id}"?`);
+      if (confirmed) {
+        (async () => {
+          try {
+            // Attempt to delete from server
+            const response = await fetch(
+              `${BASE_URL}/games/${selectedGame.id}`,
+              {
+                method: "DELETE",
+              }
+            );
+
+            if (!response.ok) {
+              throw new Error(
+                `Failed to delete game with ID ${selectedGame.id}`
+              );
+            }
+
+            // If server deletion is successful, remove from local state
+            setGames((prev) => prev.filter((g) => g.id !== selectedGame.id));
+
+            console.log(`Game ${selectedGame.id} deleted successfully.`);
+            router.back(); // 3Navigate back to the list screen
+          } catch (error) {
+            console.error("Error deleting game:", error);
+            alert("Failed to delete the game. Please try again.");
+          }
+        })();
+      }
+      return;
+    }
+    Alert.alert(
+      "Delete Game",
+      `Are you sure you want to delete "${selectedGame.id}"?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(
+                `${BASE_URL}/games/${selectedGame.id}`,
+                {
+                  method: "DELETE",
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to delete game with ID ${selectedGame.id}`
+                );
+              }
+              setGames((prev) => prev.filter((g) => g.id !== selectedGame.id));
+              router.back();
+            } catch (error) {
+              console.error("Error deleting game:", error);
+              Alert.alert("Error", "Failed to delete the game.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={commonStyles.container}>
       <View style={styles.contentPadding}>
+        {/* Header Section */}
         <View style={styles.header}>
-          <Text style={styles.titleText}>Game #{selectedGame.id}</Text>
-          <Text style={styles.timeText}>
-            Time: {selectedGame.time || "N/A"}
-          </Text>
+          <Text style={styles.titleText}>Game: {selectedGame.id}</Text>
         </View>
 
-        <View style={styles.playersContainer}>
-          <Text style={styles.sectionTitle}>Players & Scores</Text>
+        {/* Game Time Section */}
+        <View style={commonStyles.whiteCard}>
+          <Text style={styles.labelText}>Time</Text>
+          <Text style={styles.bodyText}>{selectedGame.time || "N/A"}</Text>
+        </View>
 
-          {players.length === 0 ? (
-            <Text style={styles.noPlayers}>
-              No players found for this game.
-            </Text>
-          ) : (
-            players.map((p) => (
-              <View key={p.playerID} style={styles.playerRow}>
-                <View style={styles.playerInfo}>
-                  <Text style={styles.playerName}>
-                    #{p.playerID} - {p.name || "Unknown"}
-                  </Text>
-                  {p.email && <Text style={styles.playerEmail}>{p.email}</Text>}
+        {/* Players & Score Section */}
+        <View style={commonStyles.whiteCard}>
+          <Text style={styles.labelText}>Players & Scores</Text>
+          {players.length > 0 ? (
+            <FlatList
+              data={players}
+              keyExtractor={(_, index) => index.toString()}
+              renderItem={({ item, index }) => (
+                <View>
+                  <View style={styles.playerRow}>
+                    <View style={styles.playerInfo}>
+                      <Text style={styles.rank}>#{index + 1}</Text>
+                      <Text style={styles.playerName}>
+                        {item.name?.trim() || "unknown"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.rightInfo}>
+                      <Text style={styles.score}>{item.score}</Text>
+                    </View>
+                  </View>
+
+                  {index < players.length && <View style={styles.divider} />}
                 </View>
-                <Text style={styles.playerScore}>{p.score}</Text>
-              </View>
-            ))
+              )}
+            />
+          ) : (
+            <Text style={styles.bodyText}>No players found.</Text>
           )}
         </View>
 
+        {/* Delete Button */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
             style={[commonStyles.button, commonStyles.dangerButton]}
             onPress={handleDelete}
           >
-            <Text style={commonStyles.buttonText}>Delete Game</Text>
+            <Text style={commonStyles.buttonText}>Delete Gamew</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -192,81 +190,79 @@ const styles = StyleSheet.create({
   contentPadding: {
     padding: 20,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  header: {
-    marginBottom: 24,
-  },
   titleText: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#333",
     marginBottom: 8,
   },
-  timeText: {
-    fontSize: 18,
-    color: "#666",
-  },
-  playersContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 12,
+  labelText: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "#333",
+    marginBottom: 8,
   },
-  loadingText: {
-    marginTop: 12,
+  bodyText: {
     fontSize: 16,
+    color: "#555",
+    lineHeight: 24,
+  },
+  smallText: {
+    fontSize: 14,
     color: "#666",
   },
-  errorText: {
-    fontSize: 18,
-    color: "#e74c3c",
-    textAlign: "center",
+  priceText: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#007AFF",
   },
-  noPlayers: {
+  header: {
+    marginBottom: 24,
+  },
+  category: {
     fontSize: 16,
-    color: "#999",
-    fontStyle: "italic",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   playerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+    paddingVertical: 6,
   },
   playerInfo: {
-    flex: 1,
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  rank: {
+    width: 30,
+    color: "#999",
   },
   playerName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
+    flex: 1,
     color: "#333",
-    marginBottom: 4,
+    fontSize: 16,
   },
-  playerEmail: {
-    fontSize: 14,
-    color: "#666",
+  rightInfo: {
+    justifyContent: "center",
+    alignItems: "flex-end",
   },
-  playerScore: {
-    fontSize: 20,
+  score: {
+    fontSize: 16,
     fontWeight: "bold",
     color: "#007AFF",
-    marginLeft: 12,
+    width: 50,
+    textAlign: "right",
   },
   actionButtonsContainer: {
+    gap: 12,
     marginTop: 20,
     marginBottom: 30,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E0E0E0",
+    marginVertical: 6,
   },
 });

@@ -16,7 +16,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" color={color} size={24} />
           ),
-          tabBarLabel: "Items",
+          tabBarLabel: "Games",
           headerStyle: commonStyles.headerStyle,
           headerTintColor: headerConfig.tintColor,
         }}
