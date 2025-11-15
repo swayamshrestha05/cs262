@@ -78,9 +78,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, []);
 
-  /**
-   * Deletes a game by ID from the REST API and updates local state.
-   */
   const deleteGame = useCallback(async (id: number) => {
     try {
       const response = await fetch(`${BASE_URL}/games/${id}`, {
@@ -106,15 +103,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const raw = await response.json();
-        // Backend returns {name, score} - map to GamePlayer
-        const players: GamePlayer[] = Array.isArray(raw)
-          ? raw.map((row: any, idx: number) => ({
-              id: row.id ?? idx,
-              name: row.name ?? "unknown",
-              score: typeof row.score === "number" ? row.score : 0,
-            }))
-          : [];
+        const players: GamePlayer[] = await response.json();
         return players;
       } catch (error) {
         console.error("Failed to load players for game:", error);

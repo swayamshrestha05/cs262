@@ -21,12 +21,9 @@ import { useGamesContext } from "@/context/GameContext";
 import { GamePlayer, Game } from "../types/Monopoly";
 import { commonStyles } from "../styles/common";
 
-// Determine base URL based on environment
-const BASE_URL = "http://153.106.223.189:3000"; // Temporary public IP for testing
-// "http://localhost:3000"     // Web local testing
+const BASE_URL = "http://153.106.223.189:3000";
 
 export default function Details() {
-  // Extract the game ID from navigation parameters
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { fetchPlayers, setGames, games } = useGamesContext();
@@ -38,7 +35,6 @@ export default function Details() {
 
   const [players, setPlayers] = useState<GamePlayer[]>([]);
 
-  // fetchPlayers & find game info
   useEffect(() => {
     if (id) {
       (async () => {
@@ -52,7 +48,6 @@ export default function Details() {
     }
   }, [id, fetchPlayers]);
 
-  // Handles item deletion with user confirmation
   const handleDelete = () => {
     if (!selectedGame.id) return;
 
@@ -63,7 +58,6 @@ export default function Details() {
       if (confirmed) {
         (async () => {
           try {
-            // Attempt to delete from server
             const response = await fetch(
               `${BASE_URL}/games/${selectedGame.id}`,
               {
@@ -77,11 +71,10 @@ export default function Details() {
               );
             }
 
-            // If server deletion is successful, remove from local state
             setGames((prev) => prev.filter((g) => g.id !== selectedGame.id));
 
             console.log(`Game ${selectedGame.id} deleted successfully.`);
-            router.back(); // 3Navigate back to the list screen
+            router.back();
           } catch (error) {
             console.error("Error deleting game:", error);
             alert("Failed to delete the game. Please try again.");
@@ -130,18 +123,15 @@ export default function Details() {
   return (
     <ScrollView style={commonStyles.container}>
       <View style={styles.contentPadding}>
-        {/* Header Section */}
         <View style={styles.header}>
           <Text style={styles.titleText}>Game: {selectedGame.id}</Text>
         </View>
 
-        {/* Game Time Section */}
         <View style={commonStyles.whiteCard}>
           <Text style={styles.labelText}>Time</Text>
           <Text style={styles.bodyText}>{selectedGame.time || "N/A"}</Text>
         </View>
 
-        {/* Players & Score Section */}
         <View style={commonStyles.whiteCard}>
           <Text style={styles.labelText}>Players & Scores</Text>
           {players.length > 0 ? (
@@ -172,13 +162,12 @@ export default function Details() {
           )}
         </View>
 
-        {/* Delete Button */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
             style={[commonStyles.button, commonStyles.dangerButton]}
             onPress={handleDelete}
           >
-            <Text style={commonStyles.buttonText}>Delete Gamew</Text>
+            <Text style={commonStyles.buttonText}>Delete Game</Text>
           </TouchableOpacity>
         </View>
       </View>
